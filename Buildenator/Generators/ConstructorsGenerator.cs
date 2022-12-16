@@ -1,6 +1,5 @@
-﻿using Buildenator.Configuration.Contract;
-using System.Linq;
-using System.Text;
+﻿using System.Text;
+using Buildenator.Configuration;
 
 namespace Buildenator.Generators
 {
@@ -8,8 +7,8 @@ namespace Buildenator.Generators
     {
         internal static string GenerateConstructor(
             string builderName,
-            IEntityToBuild entity,
-            IFixtureProperties? fixtureConfiguration)
+            in EntityToBuild entity,
+            in FixtureProperties? fixtureConfiguration)
         {
             var hasAnyBody = false;
             var parameters = entity.GetAllUniqueSettablePropertiesAndParameters();
@@ -18,15 +17,17 @@ namespace Buildenator.Generators
             output.AppendLine($@"{CommentsGenerator.GenerateSummaryOverrideComment()}
         public {builderName}()
         {{");
-            foreach (var typedSymbol in parameters.Where(a => a.NeedsFieldInit()))
+            foreach (var typedSymbol in parameters)
             {
+                if (!typedSymbol.NeedsFieldInit()) continue;
+
                 output.AppendLine($@"            {typedSymbol.GenerateFieldInitialization()}");
                 hasAnyBody = true;
             }
 
-            if (fixtureConfiguration is not null && fixtureConfiguration.NeedsAdditionalConfiguration())
+            if (fixtureConfiguration is not null && fixtureConfiguration.Value.NeedsAdditionalConfiguration())
             {
-                output.AppendLine($@"            {fixtureConfiguration.GenerateAdditionalConfiguration()};");
+                output.AppendLine($@"            {fixtureConfiguration.Value.GenerateAdditionalConfiguration()};");
                 hasAnyBody = true;
             }
 

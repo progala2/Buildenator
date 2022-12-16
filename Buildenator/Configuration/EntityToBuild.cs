@@ -1,6 +1,6 @@
-﻿using Buildenator.Abstraction;
+﻿using System;
+using Buildenator.Abstraction;
 using Buildenator.CodeAnalysis;
-using Buildenator.Configuration.Contract;
 using Buildenator.Extensions;
 using Microsoft.CodeAnalysis;
 using System.Collections.Generic;
@@ -8,18 +8,18 @@ using System.Linq;
 
 namespace Buildenator.Configuration
 {
-    internal sealed class EntityToBuild : IEntityToBuild
+    internal readonly ref struct EntityToBuild
     {
         public string ContainingNamespace { get; }
         public string Name { get; }
         public string FullName { get; }
         public string FullNameWithConstraints { get; }
         public IReadOnlyDictionary<string, TypedSymbol> ConstructorParameters { get; }
-        public IEnumerable<TypedSymbol> SettableProperties { get; }
-        public IEnumerable<TypedSymbol> UnsettableProperties { get; }
-        public string[] AdditionalNamespaces { get; }
+        public ReadOnlySpan<TypedSymbol> SettableProperties { get; }
+        public ReadOnlySpan<TypedSymbol> UnsettableProperties { get; }
+        public ReadOnlySpan<string> AdditionalNamespaces { get; }
 
-        public EntityToBuild(INamedTypeSymbol typeForBuilder, MockingProperties? mockingConfiguration, FixtureProperties? fixtureConfiguration)
+        public EntityToBuild(INamedTypeSymbol typeForBuilder, in MockingProperties mockingConfiguration, in FixtureProperties fixtureConfiguration)
         {
             INamedTypeSymbol? entityToBuildSymbol;
             var additionalNamespaces = Enumerable.Empty<string>();
@@ -42,41 +42,87 @@ namespace Buildenator.Configuration
                 genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters | SymbolDisplayGenericsOptions.IncludeTypeConstraints | SymbolDisplayGenericsOptions.IncludeVariance));
             _mockingConfiguration = mockingConfiguration;
             _fixtureConfiguration = fixtureConfiguration;
-            ConstructorParameters = GetConstructorParameters(entityToBuildSymbol);
-            (SettableProperties, UnsettableProperties) = DividePropertiesBySetability(entityToBuildSymbol, mockingConfiguration, fixtureConfiguration?.Strategy);
+            var constructorParameters = 
+                ConstructorParameters = GetConstructorParameters(entityToBuildSymbol);
+            ConstructorParameters = constructorParameters;
+
+            var twoSets = DividePropertiesBySetability(entityToBuildSymbol, mockingConfiguration, fixtureConfiguration.Strategy);
+            UnsettableProperties = twoSets.NotSettable;
+            SettableProperties = twoSets.Settable;
+            var uniqueTypedSymbols = new List<TypedSymbol>();
+            foreach (var x in SettableProperties)
+            {
+                if (constructorParameters.ContainsKey(x.SymbolName)) continue;
+                uniqueTypedSymbols.Add(x);
+            }
+
+            uniqueTypedSymbols.AddRange(ConstructorParameters.Values);
+            _uniqueTypedSymbols = uniqueTypedSymbols.ToArray();
+            
+            var uniqueUnsettableTypedSymbols = new List<TypedSymbol>();
+            foreach (var x in UnsettableProperties)
+            {
+                if (constructorParameters.ContainsKey(x.SymbolName)) continue;
+                uniqueUnsettableTypedSymbols.Add(x);
+            }
+
+            _uniqueUnsettableTypedSymbols = uniqueUnsettableTypedSymbols.ToArray();
         }
 
-        public IReadOnlyList<TypedSymbol> GetAllUniqueSettablePropertiesAndParameters()
+        public ReadOnlySpan<TypedSymbol> GetAllUniqueSettablePropertiesAndParameters()
         {
-            return _uniqueTypedSymbols ??= SettableProperties
-                .Where(x => !ConstructorParameters.ContainsKey(x.SymbolName))
-                .Concat(ConstructorParameters.Values).ToList();
+            return _uniqueTypedSymbols.ToArray();
         }
 
-        public IReadOnlyList<TypedSymbol> GetAllUniqueNotSettablePropertiesWithoutConstructorsParametersMatch()
+        public ReadOnlySpan<TypedSymbol> GetAllUniqueNotSettablePropertiesWithoutConstructorsParametersMatch()
         {
-            return _uniqueUnsettableTypedSymbols ??= UnsettableProperties
-                .Where(x => !ConstructorParameters.ContainsKey(x.SymbolName)).ToList();
+            return _uniqueUnsettableTypedSymbols.ToArray();
         }
 
         private IReadOnlyDictionary<string, TypedSymbol> GetConstructorParameters(INamedTypeSymbol entityToBuildSymbol)
         {
-            return entityToBuildSymbol.Constructors.OrderByDescending(x => x.Parameters.Length).First().Parameters
-                .ToDictionary(x => x.PascalCaseName(), s => new TypedSymbol(s, _mockingConfiguration, _fixtureConfiguration?.Strategy));
+            var parameterSymbols = entityToBuildSymbol.Constructors.OrderByDescending(x => x.Parameters.Length).First().Parameters;
+            var dict = new Dictionary<string, TypedSymbol>();
+            foreach (var parameter in parameterSymbols)
+            {
+                dict.Add(parameter.PascalCaseName(), new TypedSymbol(parameter, _mockingConfiguration, _fixtureConfiguration.Strategy));
+            }
+
+            return dict;
         }
 
-        private static (TypedSymbol[] Settable, TypedSymbol[] NotSettable) DividePropertiesBySetability(
-            INamedTypeSymbol entityToBuildSymbol, IMockingProperties? mockingConfiguration, FixtureInterfacesStrategy? fixtureConfiguration)
+        private static TwoSets DividePropertiesBySetability(
+            INamedTypeSymbol entityToBuildSymbol, in MockingProperties mockingConfiguration, FixtureInterfacesStrategy fixtureConfiguration)
         {
             var properties = entityToBuildSymbol.DividePublicPropertiesBySetability();
-            return (
-                properties.Settable.Select(a => new TypedSymbol(a, mockingConfiguration, fixtureConfiguration)).ToArray(),
-                properties.NotSettable.Select(a => new TypedSymbol(a, mockingConfiguration, fixtureConfiguration)).ToArray());
+            var settable = new List<TypedSymbol>();
+            foreach (var a in properties.Settable)
+            {
+                settable.Add(new TypedSymbol(a, mockingConfiguration, fixtureConfiguration));
+            }
+            var unsettable = new List<TypedSymbol>();
+            foreach (var a in properties.NotSettable)
+            {
+                unsettable.Add(new TypedSymbol(a, mockingConfiguration, fixtureConfiguration));
+            }
+            return new TwoSets(settable.ToArray(), unsettable.ToArray());
         }
 
-        private IReadOnlyList<TypedSymbol>? _uniqueTypedSymbols;
-        private IReadOnlyList<TypedSymbol>? _uniqueUnsettableTypedSymbols;
-        private readonly MockingProperties? _mockingConfiguration;
-        private readonly FixtureProperties? _fixtureConfiguration;
+        private readonly ReadOnlySpan<TypedSymbol> _uniqueTypedSymbols;
+        private readonly ReadOnlySpan<TypedSymbol> _uniqueUnsettableTypedSymbols;
+        private readonly MockingProperties _mockingConfiguration;
+        private readonly FixtureProperties _fixtureConfiguration;
+
+        private readonly ref struct TwoSets
+        {
+            public TwoSets(ReadOnlySpan<TypedSymbol> settable, ReadOnlySpan<TypedSymbol> notSettable)
+            {
+                Settable = settable;
+                NotSettable = notSettable;
+            }
+
+            public ReadOnlySpan<TypedSymbol> Settable { get; }
+            public ReadOnlySpan<TypedSymbol> NotSettable { get; }
+        }
     }
 }

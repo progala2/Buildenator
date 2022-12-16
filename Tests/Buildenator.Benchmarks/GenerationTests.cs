@@ -18,7 +18,7 @@ public class GenerationTests
     private static readonly GeneratorDriver Driver = CSharpGeneratorDriver.Create(new BuildersGenerator());
     private static readonly GeneratorDriver EmptyDriver = CSharpGeneratorDriver.Create(new EmptySourceGenerator());
 
-    [Benchmark]
+   // [Benchmark]
     public object DriverAndCompilationOverheadForSimpleCaseTest()
     {
         return EmptyDriver.RunGenerators(CreateCompilation(SimpleSource));

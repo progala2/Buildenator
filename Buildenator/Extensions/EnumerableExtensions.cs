@@ -28,6 +28,21 @@ namespace Buildenator.Extensions
 
         public static (List<T>, List<T>) ToList<T>(this (IEnumerable<T>, IEnumerable<T>) source)
             => (source.Item1.ToList(), source.Item2.ToList());
+
+        public static ReadOnlySpan<T> Concat<T>(this ReadOnlySpan<T> source, ReadOnlySpan<T> list)
+        {
+            var span = new Span<T>(new T[source.Length + list.Length]);
+            for (var index = 0; index < source.Length; index++)
+            {
+                span[index] = source[index];
+            }
+            for (var index = 0; index < list.Length; index++)
+            {
+                span[source.Length + index] = list[index];
+            }
+
+            return span;
+        }
     }
 
 }

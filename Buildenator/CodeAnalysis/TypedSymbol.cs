@@ -1,49 +1,22 @@
 ﻿using Buildenator.Abstraction;
-using Buildenator.Configuration.Contract;
 using Buildenator.Extensions;
 using Microsoft.CodeAnalysis;
 using System.Linq;
+using Buildenator.Configuration;
 
 namespace Buildenator.CodeAnalysis
 {
-    internal sealed class TypedSymbol : ITypedSymbol
+    internal readonly struct TypedSymbol
     {
-        public TypedSymbol(IPropertySymbol symbol, IMockingProperties? mockingInterfaceStrategy, FixtureInterfacesStrategy? fixtureConfiguration)
+        public TypedSymbol(ISymbol symbol, ITypeSymbol type, in MockingProperties mockingInterfaceStrategy,
+            FixtureInterfacesStrategy fixtureConfiguration)
         {
             Symbol = symbol;
-            Type = symbol.Type;
+            Type = type;
             _mockingProperties = mockingInterfaceStrategy;
-            _fixtureConfiguration = fixtureConfiguration;
-        }
-
-        public TypedSymbol(IParameterSymbol symbol, IMockingProperties? mockingInterfaceStrategy, FixtureInterfacesStrategy? fixtureConfiguration)
-        {
-            Symbol = symbol;
-            Type = symbol.Type;
-            _mockingProperties = mockingInterfaceStrategy;
-            _fixtureConfiguration = fixtureConfiguration;
-        }
-
-        internal bool NeedsFieldInit() => IsMockable();
-
-        private ISymbol Symbol { get; }
-        private ITypeSymbol Type { get; }
-
-        private string? _underscoreName;
-        public string UnderScoreName => _underscoreName ??= Symbol.UnderScoreName();
-
-        private string? _typeFullName;
-        public string TypeFullName => _typeFullName ??= Type.ToDisplayString();
-
-        public string TypeName => Type.Name;
-
-        public string SymbolPascalName => Symbol.PascalCaseName();
-        public string SymbolName => Symbol.Name;
-
-        private readonly IMockingProperties? _mockingProperties;
-        private bool? _isMockable;
-        public bool IsMockable()
-            => _isMockable ??= _mockingProperties?.Strategy switch
+            UnderScoreName ??= Symbol.UnderScoreName();
+            TypeFullName ??= Type.ToDisplayString();
+            IsMockable = _mockingProperties.Strategy switch
             {
                 MockingInterfacesStrategy.All
                     when Type.TypeKind == TypeKind.Interface => true,
@@ -52,21 +25,44 @@ namespace Buildenator.CodeAnalysis
                 _ => false
             };
 
-
-        private readonly FixtureInterfacesStrategy? _fixtureConfiguration;
-        private bool? _isFakeable;
-        public bool IsFakeable()
-            => _isFakeable ??= _fixtureConfiguration switch
+            IsFakeable = fixtureConfiguration switch
             {
-                null => false,
+                FixtureInterfacesStrategy.Null => false,
                 FixtureInterfacesStrategy.None
                     when Type.TypeKind == TypeKind.Interface => false,
                 FixtureInterfacesStrategy.OnlyGenericCollections
                     when Type.TypeKind == TypeKind.Interface && Type.AllInterfaces.All(x => x.SpecialType != SpecialType.System_Collections_IEnumerable) => false,
                 _ => true
             };
+        }
+        public TypedSymbol(IPropertySymbol symbol, in MockingProperties mockingInterfaceStrategy, FixtureInterfacesStrategy fixtureConfiguration)
+        : this(symbol, symbol.Type, mockingInterfaceStrategy, fixtureConfiguration)
+        {
+        }
+
+        public TypedSymbol(IParameterSymbol symbol, in MockingProperties mockingInterfaceStrategy, FixtureInterfacesStrategy fixtureConfiguration)
+            : this(symbol, symbol.Type, mockingInterfaceStrategy, fixtureConfiguration)
+        {
+        }
+
+        internal bool NeedsFieldInit() => IsMockable;
+
+        private ISymbol Symbol { get; }
+        private ITypeSymbol Type { get; }
+
+        public string UnderScoreName { get; }
+        public string TypeFullName { get; }
+
+        public string TypeName => Type.Name;
+
+        public string SymbolPascalName => Symbol.PascalCaseName();
+        public string SymbolName => Symbol.Name;
+
+        private readonly MockingProperties _mockingProperties;
+        public bool IsMockable { get; }
+        public bool IsFakeable { get; }
 
         public string GenerateFieldInitialization()
-            => $"{UnderScoreName} = {string.Format(_mockingProperties!.FieldDeafultValueAssigmentFormat, TypeFullName)};";
+            => $"{UnderScoreName} = {string.Format(_mockingProperties.FieldDeafultValueAssigmentFormat, TypeFullName)};";
     }
 }

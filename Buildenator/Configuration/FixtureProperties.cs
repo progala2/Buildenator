@@ -1,11 +1,14 @@
 ﻿using Buildenator.Abstraction;
-using Buildenator.Configuration.Contract;
+using Buildenator.Generators;
 
 namespace Buildenator.Configuration
 {
-    internal sealed class FixtureProperties : IFixtureProperties
+    internal readonly struct FixtureProperties : IAdditionalNamespacesProvider
     {
         private const string FixtureLiteral = "_fixture";
+
+        public static readonly FixtureProperties Empty =
+            new (null!, null!, null!, null!, FixtureInterfacesStrategy.Null, null!);
 
         public FixtureProperties(
             string name,
@@ -34,5 +37,7 @@ namespace Buildenator.Configuration
             => AdditionalConfiguration is null ? string.Empty : string.Format(AdditionalConfiguration, FixtureLiteral, Name);
 
         public bool NeedsAdditionalConfiguration() => AdditionalConfiguration is not null;
+
+        public bool IsEmpty => Strategy == FixtureInterfacesStrategy.Null;
     }
 }

@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Buildenator.Configuration
 {
-    internal sealed class FixturePropertiesBuilder
+    internal readonly ref struct FixturePropertiesBuilder
     {
         private readonly ImmutableArray<TypedConstant>? _globalParameters;
         public FixturePropertiesBuilder(IAssemblySymbol context)
@@ -15,10 +15,10 @@ namespace Buildenator.Configuration
             _globalParameters = GetFixtureConfigurationOrDefault(context);
         }
 
-        public FixtureProperties? Build(ISymbol builderSymbol)
+        public FixtureProperties Build(ISymbol builderSymbol)
         {
             if ((GetFixtureConfigurationOrDefault(builderSymbol) ?? _globalParameters) is not { } attributeParameters)
-                return null;
+                return FixtureProperties.Empty;
 
             var i = 0;
             var name = attributeParameters.GetOrThrow(i++, nameof(FixtureProperties.Name));

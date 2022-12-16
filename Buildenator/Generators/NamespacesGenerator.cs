@@ -6,14 +6,15 @@ namespace Buildenator.Generators
 {
     internal static class NamespacesGenerator
     {
-        internal static string GenerateNamespaces(params IAdditionalNamespacesProvider?[] additionalNamespacesProviders)
+        internal static string GenerateNamespaces(in ReadOnlySpan<string> namespaces,
+            params IAdditionalNamespacesProvider?[] additionalNamespacesProviders)
         {
-            var list = new[]
+            var list = namespaces.ToArray().Concat(new[]
             {
                 "System",
                 "System.Linq",
                 "Buildenator.Abstraction.Helpers"
-            }.Concat(additionalNamespacesProviders.SelectMany(a => a?.AdditionalNamespaces ?? Array.Empty<string>()));
+            }).Concat(additionalNamespacesProviders.SelectMany(a => a?.AdditionalNamespaces ?? Array.Empty<string>()));
 
             list = list.Distinct();
 

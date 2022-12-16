@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace Buildenator.Configuration
 {
-    internal sealed class BuilderPropertiesBuilder
+    internal readonly struct BuilderPropertiesBuilder
     {
         private readonly string? _defaultNameWith;
         private readonly bool? _defaultStaticBuilder;
@@ -25,9 +25,9 @@ namespace Buildenator.Configuration
             }
         }
 
-        public BuilderProperties Build(INamedTypeSymbol builderSymbol, MakeBuilderAttributeInternal builderAttribute)
+        public BuilderProperties Build(INamedTypeSymbol builderSymbol, in MakeBuilderAttributeInternal builderAttribute)
         {
-            return new(
+            return new BuilderProperties(
                 builderSymbol,
                 new MakeBuilderAttributeInternal(
                     builderAttribute.TypeForBuilder,

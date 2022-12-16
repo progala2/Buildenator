@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 
 namespace Buildenator
 {
-    internal sealed class MakeBuilderAttributeInternal
+    internal readonly struct MakeBuilderAttributeInternal
     {
         public MakeBuilderAttributeInternal(
             INamedTypeSymbol typeForBuilder, string? buildingMethodsPrefix, bool? staticCreator, NullableStrategy? nullableStrategy, bool? generateMethodsForUnreachableProperties)

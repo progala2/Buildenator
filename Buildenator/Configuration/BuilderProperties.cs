@@ -1,17 +1,16 @@
 ﻿using Buildenator.Abstraction;
-using Buildenator.Configuration.Contract;
 using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 
 namespace Buildenator.Configuration
 {
-    internal sealed class BuilderProperties : IBuilderProperties
+    internal readonly struct BuilderProperties
     {
         private readonly Dictionary<string, IMethodSymbol> _buildingMethods;
         private readonly Dictionary<string, IFieldSymbol> _fields;
 
-        public BuilderProperties(INamedTypeSymbol builderSymbol, MakeBuilderAttributeInternal attributeData)
+        public BuilderProperties(INamedTypeSymbol builderSymbol, in MakeBuilderAttributeInternal attributeData)
         {
             ContainingNamespace = builderSymbol.ContainingNamespace.ToDisplayString();
             Name = builderSymbol.Name;
@@ -29,19 +28,21 @@ namespace Buildenator.Configuration
             var members = builderSymbol.GetMembers();
             foreach (var member in members)
             {
-                if (member is IMethodSymbol method)
+                if (member is not IMethodSymbol method)
                 {
-                    if (method.Name.StartsWith(BuildingMethodsPrefix))
-                        _buildingMethods.Add(method.Name, method);
-                    else if (method.Name == DefaultConstants.PostBuildMethodName)
-                        IsPostBuildMethodOverriden = true;
-                    else if (method.MethodKind == MethodKind.Constructor && method.Parameters.Length == 0 && !method.IsImplicitlyDeclared)
-                        IsDefaultContructorOverriden = true;
+                    if (member is not IFieldSymbol field) continue;
+
+                    _fields.Add(field.Name, field);
+
                     continue;
                 }
 
-                if (member is IFieldSymbol field)
-                    _fields.Add(field.Name, field);
+                if (method.Name.StartsWith(BuildingMethodsPrefix))
+                    _buildingMethods.Add(method.Name, method);
+                else if (method.Name == DefaultConstants.PostBuildMethodName)
+                    IsPostBuildMethodOverriden = true;
+                else if (method is { MethodKind: MethodKind.Constructor, Parameters.Length: 0, IsImplicitlyDeclared: false })
+                    IsDefaultContructorOverriden = true;
             }
         }
 

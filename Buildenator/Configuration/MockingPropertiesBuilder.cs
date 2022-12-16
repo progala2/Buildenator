@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Buildenator.Configuration
 {
-    internal class MockingPropertiesBuilder
+    internal readonly ref struct MockingPropertiesBuilder
     {
         private readonly ImmutableArray<TypedConstant>? _globalParameters;
         public MockingPropertiesBuilder(IAssemblySymbol context)
@@ -15,10 +15,10 @@ namespace Buildenator.Configuration
             _globalParameters = GetMockingConfigurationOrDefault(context);
         }
 
-        public MockingProperties? Build(ISymbol builderSymbol)
+        public MockingProperties Build(ISymbol builderSymbol)
         {
             if ((GetMockingConfigurationOrDefault(builderSymbol) ?? _globalParameters) is not { } attributeParameters)
-                return null;
+                return MockingProperties.Empty;
 
             var strategy = attributeParameters.GetOrThrow<MockingInterfacesStrategy>(0, nameof(MockingProperties.Strategy));
             var typeDeclarationFormat = attributeParameters.GetOrThrow(1, nameof(MockingProperties.TypeDeclarationFormat));
