@@ -3,15 +3,46 @@ using Buildenator.Configuration.Contract;
 using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using Buildenator.Extensions;
 
 namespace Buildenator.Configuration
 {
-	internal sealed class BuilderProperties : IBuilderProperties
+	internal readonly struct BuilderProperties : IBuilderProperties
 	{
 		private readonly Dictionary<string, IMethodSymbol> _buildingMethods;
 		private readonly Dictionary<string, IFieldSymbol> _fields;
+		
+        public static BuilderProperties Create(INamespaceOrTypeSymbol builderSymbol,
+            MakeBuilderAttributeInternal builderAttribute, ImmutableArray<TypedConstant>? globalAttributes)
+        {
+            string? defaultNameWith = null;
+            bool? defaultStaticBuilder = null;
+            NullableStrategy? nullableStrategy = null;
+            bool? generateMethodsForUnreachableProperties = null;
+            bool? implicitCast = null;
 
-		public BuilderProperties(INamespaceOrTypeSymbol builderSymbol, MakeBuilderAttributeInternal attributeData)
+            if (globalAttributes.HasValue)
+            {
+                defaultNameWith = globalAttributes.Value.GetOrThrow<string>(0, nameof(MakeBuilderAttributeInternal.BuildingMethodsPrefix));
+                defaultStaticBuilder = globalAttributes.Value.GetOrThrow<bool>(1, nameof(MakeBuilderAttributeInternal.DefaultStaticCreator));
+                nullableStrategy = globalAttributes.Value.GetOrThrow<NullableStrategy>(2, nameof(MakeBuilderAttributeInternal.NullableStrategy));
+                generateMethodsForUnreachableProperties = globalAttributes.Value.GetOrThrow<bool>(3, nameof(MakeBuilderAttributeInternal.GenerateMethodsForUnreachableProperties));
+                implicitCast = globalAttributes.Value.GetOrThrow<bool>(4, nameof(MakeBuilderAttributeInternal.ImplicitCast));
+            }
+
+            return new BuilderProperties(builderSymbol,
+                new MakeBuilderAttributeInternal(
+                    builderAttribute.TypeForBuilder,
+                    builderAttribute.BuildingMethodsPrefix ?? defaultNameWith,
+                    builderAttribute.DefaultStaticCreator ?? defaultStaticBuilder,
+                    builderAttribute.NullableStrategy ?? nullableStrategy,
+                    builderAttribute.GenerateMethodsForUnreachableProperties ??
+                    generateMethodsForUnreachableProperties,
+                    builderAttribute.ImplicitCast ?? implicitCast));
+        }
+
+		private BuilderProperties(INamespaceOrTypeSymbol builderSymbol, MakeBuilderAttributeInternal attributeData)
 		{
 			ContainingNamespace = builderSymbol.ContainingNamespace.ToDisplayString();
 			Name = builderSymbol.Name;
@@ -25,8 +56,8 @@ namespace Buildenator.Configuration
 			if (string.IsNullOrWhiteSpace(BuildingMethodsPrefix))
 				throw new ArgumentNullException(nameof(attributeData), "Prefix name shouldn't be empty!");
 
-			_buildingMethods = new Dictionary<string, IMethodSymbol>();
-			_fields = new Dictionary<string, IFieldSymbol>();
+			_buildingMethods = new();
+			_fields = new();
 			var members = builderSymbol.GetMembers();
 			foreach (var member in members)
 			{

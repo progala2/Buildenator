@@ -34,7 +34,7 @@ public class BuilderPropertiesTests
             NullableStrategy.Enabled, false, true);
 
         // Act
-        var act = () => new BuilderProperties(_builderSymbolMock.Object, attributeDataMock);
+        var act = () => Create(attributeDataMock);
 
         // Assert
         act.Should().ThrowExactly<ArgumentNullException>();
@@ -53,7 +53,7 @@ public class BuilderPropertiesTests
         _builderSymbolMock.Setup(x => x.GetMembers()).Returns(ImmutableArray.Create((ISymbol)methodSymbolMock.Object));
 
         // Act
-        var properties = new BuilderProperties(_builderSymbolMock.Object, attributeDataMock);
+        var properties = Create(attributeDataMock);
 
         // Assert
         properties.ContainingNamespace.Should().NotBeNullOrEmpty();
@@ -68,6 +68,11 @@ public class BuilderPropertiesTests
         properties.IsDefaultConstructorOverriden.Should().BeFalse();
         properties.BuildingMethods.Should().ContainKey(methodSymbolMock.Object.Name).And.ContainValue(methodSymbolMock.Object);
         properties.Fields.Should().BeEmpty();
+    }
+
+    private BuilderProperties Create(MakeBuilderAttributeInternal attributeDataMock)
+    {
+        return BuilderProperties.Create(_builderSymbolMock.Object, attributeDataMock, null);
     }
 
     [Theory]
@@ -108,7 +113,7 @@ public class BuilderPropertiesTests
         _builderSymbolMock.Setup(x => x.GetMembers()).Returns(ImmutableArray.Create((ISymbol)methodSymbolMock.Object));
 
         // Act
-        var properties = new BuilderProperties(_builderSymbolMock.Object, attributeDataMock);
+        var properties = BuilderProperties.Create(_builderSymbolMock.Object, attributeDataMock, null);
 
         // Assert
         properties.BuildingMethods.Should().ContainKey(methodSymbolMock.Object.Name).And.ContainValue(methodSymbolMock.Object);
@@ -131,7 +136,7 @@ public class BuilderPropertiesTests
         _builderSymbolMock.Setup(x => x.GetMembers()).Returns(ImmutableArray.Create((ISymbol)methodSymbolMock.Object));
 
         // Act
-        var properties = new BuilderProperties(_builderSymbolMock.Object, attributeDataMock);
+        var properties = Create(attributeDataMock);
 
         // Assert
         properties.IsPostBuildMethodOverriden.Should().BeTrue();
@@ -156,7 +161,7 @@ public class BuilderPropertiesTests
         _builderSymbolMock.Setup(x => x.GetMembers()).Returns(ImmutableArray.Create((ISymbol)methodSymbolMock.Object));
 
         // Act
-        var properties = new BuilderProperties(_builderSymbolMock.Object, attributeDataMock);
+        var properties = Create(attributeDataMock);
 
         // Assert
         properties.IsDefaultConstructorOverriden.Should().BeTrue();
@@ -181,7 +186,7 @@ public class BuilderPropertiesTests
         _builderSymbolMock.Setup(x => x.GetMembers()).Returns(ImmutableArray.Create((ISymbol)methodSymbolMock.Object));
 
         // Act
-        var properties = new BuilderProperties(_builderSymbolMock.Object, attributeDataMock);
+        var properties = Create(attributeDataMock);
 
         // Assert
         properties.IsDefaultConstructorOverriden.Should().BeTrue();
@@ -203,7 +208,7 @@ public class BuilderPropertiesTests
         _builderSymbolMock.Setup(x => x.GetMembers()).Returns(ImmutableArray.Create(new[] { (ISymbol)fieldSymbolMock.Object }));
 
         // Act
-        var properties = new BuilderProperties(_builderSymbolMock.Object, attributeDataMock);
+        var properties = Create(attributeDataMock);
 
         // Assert
         properties.Fields.Should().ContainKey(fieldSymbolMock.Object.Name).And.ContainValue(fieldSymbolMock.Object);
