@@ -84,10 +84,20 @@ namespace Buildenator.Configuration
                 INamedTypeSymbol entityToBuildSymbol,
                 IMockingProperties? mockingConfiguration,
                 IFixtureProperties? fixtureConfiguration)
-                => entityToBuildSymbol.Constructors.Length > 0
-                ? new Constructor(entityToBuildSymbol.Constructors.OrderByDescending(x => x.Parameters.Length).First().Parameters
-                    .ToDictionary(x => x.PascalCaseName(), s => new TypedSymbol(s, mockingConfiguration, fixtureConfiguration?.Strategy)))
-                : default;
+            {
+                var onlyPublicOrInternalConstructors = entityToBuildSymbol.Constructors
+                    .Where(m =>
+                        !m.IsStatic
+                        && !m.IsImplicitlyDeclared
+                        && (m.DeclaredAccessibility == Accessibility.Public || m.DeclaredAccessibility == Accessibility.Internal))
+                    .ToList();
+
+                return onlyPublicOrInternalConstructors.Count > 0
+                        ? new Constructor(onlyPublicOrInternalConstructors.OrderByDescending(x => x.Parameters.Length).First().Parameters
+                            .ToDictionary(x => x.PascalCaseName(), s => new TypedSymbol(s, mockingConfiguration, fixtureConfiguration?.Strategy)))
+                        : default;
+            }
+
             private Constructor(IReadOnlyDictionary<string, TypedSymbol> constructorParameters)
             {
                 ConstructorParameters = constructorParameters;
