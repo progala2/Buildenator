@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using AutoFixture;
 using AutoFixture.AutoMoq;
+using AutoFixture.Xunit2;
 using Buildenator.CodeAnalysis;
 using Buildenator.Configuration;
 using Buildenator.Configuration.Contract;
@@ -98,6 +99,7 @@ public class PropertiesStringGeneratorTests
         result.Should().NotContain($"{_typedSymbol.TypeFullName} {_typedSymbol.UnderScoreName}");
         result.Should().NotContain(existingMethod);
     }
+
 
     [Fact]
     public void GeneratePropertiesCode_ShouldGenerateMethodDefinitionForMockableTypedSymbols()
